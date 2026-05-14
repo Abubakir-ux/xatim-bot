@@ -180,6 +180,26 @@ async def cmd_xatim(message: types.Message):
     user = message.from_user
     if not user:
         return
+
+    # Bot admin ekanligini tekshirish
+    try:
+        bot_member = await bot.get_chat_member(message.chat.id, (await bot.get_me()).id)
+        if bot_member.status not in ("administrator", "creator"):
+            bot_info = await bot.get_me()
+            kb = InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(
+                    text="👑 Botni admin qilish",
+                    url=f"https://t.me/{bot_info.username}?startgroup=true&admin=post_messages+delete_messages+restrict_members"
+                )
+            ]])
+            return await message.answer(
+                "⚠️ <b>Bot guruhda admin emas!</b>\n\n"
+                "Botni admin qilmasdan ba'zi funksiyalar ishlamaydi.\n"
+                "Iltimos, botni admin qiling!",
+                reply_markup=kb
+            )
+    except:
+        pass
     creator_id = user.id
     creator_username = f"@{user.username}" if user.username else user.full_name
     data = {
@@ -331,14 +351,19 @@ async def cb_boshlash(callback: CallbackQuery):
     except TelegramBadRequest:
         pass
 
-    # Statistika
+    # Statistika - guruh bo'yicha saqlash
+    chat_id_str2 = str(data["chat_id"])
     for uid, name, ulush, juz_text, sura_text in taqsimlangan:
         uid_str = str(uid)
         if uid_str not in stats_db:
-            stats_db[uid_str] = {"ism": name, "jami_xatim": 0, "jami_juz": 0}
+            stats_db[uid_str] = {"ism": name, "guruhlar": {}}
         stats_db[uid_str]["ism"] = name
-        stats_db[uid_str]["jami_xatim"] += 1
-        stats_db[uid_str]["jami_juz"] += ulush
+        if "guruhlar" not in stats_db[uid_str]:
+            stats_db[uid_str]["guruhlar"] = {}
+        if chat_id_str2 not in stats_db[uid_str]["guruhlar"]:
+            stats_db[uid_str]["guruhlar"][chat_id_str2] = {"jami_xatim": 0, "jami_juz": 0}
+        stats_db[uid_str]["guruhlar"][chat_id_str2]["jami_xatim"] += 1
+        stats_db[uid_str]["guruhlar"][chat_id_str2]["jami_juz"] += ulush
     save_json(STATS_FILE, stats_db)
 
     # Tarix
@@ -492,21 +517,24 @@ async def cmd_statistika(message: types.Message):
     if message.chat.type == "private":
         return await message.answer("Bu buyruq faqat guruhda ishlaydi!")
     user_id = str(message.from_user.id)
+    chat_id_str = str(message.chat.id)
     username = f"@{message.from_user.username}" if message.from_user.username else message.from_user.full_name
 
-    if user_id not in stats_db or stats_db[user_id]["jami_xatim"] == 0:
+    s = stats_db.get(user_id, {})
+    guruh_stats = s.get("guruhlar", {}).get(chat_id_str, {})
+
+    if not guruh_stats or guruh_stats.get("jami_xatim", 0) == 0:
         await message.answer(
             f"📊 <b>{username} statistikasi</b>\n\n"
-            f"Hali birorta xatimda qatnashmadingiz.\n"
-            f"Guruhda /xatimyaratish bilan boshlang! 📖"
+            f"Siz bu guruhda hali xatimda qatnashmadingiz.\n"
+            f"/xatimyaratish bilan boshlang! 📖"
         )
         return
 
-    s = stats_db[user_id]
     await message.answer(
         f"📊 <b>{username} statistikasi</b>\n\n"
-        f"📖 Xatimlarda qatnashgan: <b>{s['jami_xatim']} marta</b>\n"
-        f"📚 Jami o'qilgan juzlar: <b>{s['jami_juz']} juz</b>\n\n"
+        f"📖 Bu guruhda xatimlarda qatnashgan: <b>{guruh_stats['jami_xatim']} marta</b>\n"
+        f"📚 Jami o'qilgan juzlar: <b>{guruh_stats['jami_juz']} juz</b>\n\n"
         f"Alloh qabul qilsin! 🤲"
     )
 
@@ -537,11 +565,25 @@ async def cmd_tarix(message: types.Message):
 async def cmd_reyting(message: types.Message):
     if message.chat.type == "private":
         return await message.answer("Bu buyruq faqat guruhda ishlaydi!")
-    if not stats_db:
-        await message.answer("🏆 Hali hech kim xatimda qatnashmagan.")
+    
+    chat_id_str = str(message.chat.id)
+    
+    # Faqat shu guruhdagi statistikani olamiz
+    guruh_users = []
+    for uid_str, s in stats_db.items():
+        guruh_stats = s.get("guruhlar", {}).get(chat_id_str, {})
+        if guruh_stats.get("jami_juz", 0) > 0:
+            guruh_users.append({
+                "ism": s["ism"],
+                "jami_xatim": guruh_stats["jami_xatim"],
+                "jami_juz": guruh_stats["jami_juz"],
+            })
+
+    if not guruh_users:
+        await message.answer("🏆 Bu guruhda hali hech kim xatimda qatnashmagan.")
         return
 
-    sorted_users = sorted(stats_db.values(), key=lambda x: x["jami_juz"], reverse=True)
+    sorted_users = sorted(guruh_users, key=lambda x: x["jami_juz"], reverse=True)
     lines = ["🏆 <b>Eng faol qatnashchilar</b>\n"]
     medals = ["🥇", "🥈", "🥉"]
 
