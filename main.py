@@ -1,22 +1,48 @@
 import asyncio
 import logging
 import random
+import json
+import os
 from datetime import datetime
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, BotCommand
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.client.default import DefaultBotProperties
 
-API_TOKEN = '8655041954:AAHs4kQitwIu0hnOblkyd9NM3bQSHPDoYO8'
+API_TOKEN = '8655041954:AAF4QcY6UCqSWdkOsaCgrY_3l_anXs1o4R4'
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=API_TOKEN, default=DefaultBotProperties(parse_mode='HTML'))
 dp = Dispatcher()
 
-xatm_db = {}
+# ── FAYL BAZASI ──
+TARIX_FILE = "tarix.json"
+USERS_FILE = "users.json"
+STATS_FILE = "stats.json"
 
-# Har bir juzning suralar diapazoni
+def load_json(filename):
+    if os.path.exists(filename):
+        try:
+            with open(filename, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+def save_json(filename, data):
+    try:
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logging.error(f"Saqlashda xato: {e}")
+
+# Bazalarni yuklash
+xatm_db = {}
+tarix_db = load_json(TARIX_FILE)
+stats_db = load_json(STATS_FILE)
+users_db = load_json(USERS_FILE)  # {user_id: {ism, username}}
+
 JUZ_INFO = {
     1:  "Al-Fotiha 1 - Al-Baqara 141",
     2:  "Al-Baqara 142-252",
@@ -69,26 +95,27 @@ def taqsimla(users, jami=30):
     n = len(users)
     if n == 0:
         return []
+    uids = list(users.keys())
     names = list(users.values())
     if n >= jami:
         result = []
-        for i, name in enumerate(names[:jami]):
+        for i in range(min(n, jami)):
             juz_num = i + 1
-            result.append((name, 1, f"{juz_num}-juz", f"{JUZ_INFO[juz_num]}"))
+            result.append((uids[i], names[i], 1, f"{juz_num}-juz", JUZ_INFO[juz_num]))
         return result
     ulushlar = [1] * n
     for _ in range(jami - n):
         ulushlar[random.randint(0, n - 1)] += 1
     result = []
     current = 1
-    for name, ulush in zip(names, ulushlar):
+    for uid, name, ulush in zip(uids, names, ulushlar):
         if ulush == 1:
             juz_text = f"{current}-juz"
             sura_text = JUZ_INFO[current]
         else:
             juz_text = f"{current}-{current + ulush - 1} juzlar"
             sura_text = f"{JUZ_INFO[current].split(' - ')[0]} ... {JUZ_INFO[current + ulush - 1].split(' - ')[-1]}"
-        result.append((name, ulush, juz_text, sura_text))
+        result.append((uid, name, ulush, juz_text, sura_text))
         current += ulush
     return result
 
@@ -97,6 +124,26 @@ def get_others(data):
     return [uid for uid in data["users"] if uid != data["creator_id"]]
 
 
+async def eslatma_yuborish(uid, name, juz_text, sura_text, chat_title, msg_id):
+    kb = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="✅ Ha, o'qidim!", callback_data=f"pm_tayyor_{msg_id}_{uid}"),
+        InlineKeyboardButton(text="⏰ Keyinroq", callback_data=f"pm_keyin_{msg_id}_{uid}"),
+    ]])
+    text = (
+        f"📖 <b>Xatim eslatmasi</b>\n\n"
+        f"Siz <b>{chat_title}</b> guruhidagi xatimga qo'shilgansiz.\n\n"
+        f"Sizga tegishli: <b>{juz_text}</b>\n"
+        f"📌 {sura_text}\n\n"
+        f"Juzingizni o'qidingizmi?"
+    )
+    try:
+        await bot.send_message(chat_id=uid, text=text, reply_markup=kb)
+        return True
+    except (TelegramForbiddenError, Exception):
+        return False
+
+
+# ── /start ──
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
     if message.chat.type != "private":
@@ -116,46 +163,82 @@ async def cmd_start(message: types.Message):
     kb = InlineKeyboardMarkup(inline_keyboard=[[
         InlineKeyboardButton(text="➕ Guruhga qo'shish", url=f"https://t.me/{bot_info.username}?startgroup=true")
     ]])
+    # Foydalanuvchini bazaga saqlaymiz
+    uid = str(message.from_user.id)
+    uname = f"@{message.from_user.username}" if message.from_user.username else message.from_user.full_name
+    users_db[uid] = {"ism": uname}
+    save_json(USERS_FILE, users_db)
+
     await message.answer(text, reply_markup=kb)
 
 
+# ── /xatimyaratish ──
 @dp.message(Command("xatimyaratish"))
 async def cmd_xatim(message: types.Message):
+    if message.chat.type == "private":
+        return await message.answer("Bu buyruq faqat guruhda ishlaydi!")
     user = message.from_user
     if not user:
         return
-
     creator_id = user.id
     creator_username = f"@{user.username}" if user.username else user.full_name
-
     data = {
         "creator_id": creator_id,
         "creator_username": creator_username,
         "users": {creator_id: creator_username},
         "chat_id": message.chat.id,
+        "chat_title": message.chat.title or "Guruh",
+        "taqsim": [],
+        "tayyor": [],  # list ishlatamiz (JSON uchun)
+        "yaratilgan_vaqt": datetime.now().strftime("%d.%m.%Y %H:%M"),
     }
-
     sent = await message.answer(make_text(data))
     xatm_db[sent.message_id] = data
-
     await sent.edit_reply_markup(reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
         InlineKeyboardButton(text="➕ Qo'shilish", callback_data=f"join_{sent.message_id}")
     ]]))
 
+    # /start yozgan odamlarga xabar yuborish
+    chat_title = message.chat.title or "Guruh"
+    # Guruhga o'tish linki
+    chat_username = message.chat.username
+    if chat_username:
+        guruh_url = f"https://t.me/{chat_username}/{sent.message_id}"
+    else:
+        guruh_url = f"https://t.me/c/{str(message.chat.id)[4:]}/{sent.message_id}"
 
+    elon_kb = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="👥 Guruhga o'tish", url=guruh_url)
+    ]])
+    for uid_str, uinfo in users_db.items():
+        try:
+            uid_int = int(uid_str)
+            if uid_int == creator_id:
+                continue
+            await bot.send_message(
+                chat_id=uid_int,
+                text=f"📢 <b><a href=\'{guruh_url}\'>{chat_title}</a></b> guruhida xatim yaratildi!\n\n"
+                     f"👤 Yaratuvchi: {creator_username}\n\n"
+                     f"Xatimga qo'shilasizmi?",
+                reply_markup=elon_kb,
+                disable_web_page_preview=True
+            )
+        except:
+            pass
+
+
+# ── Qo'shilish ──
 @dp.callback_query(F.data.startswith("join_"))
 async def cb_join(callback: CallbackQuery):
     msg_id = int(callback.data.split("_")[1])
     if msg_id not in xatm_db:
         return await callback.answer("Xatim topilmadi!", show_alert=True)
-
     data = xatm_db[msg_id]
     user_id = callback.from_user.id
     username = f"@{callback.from_user.username}" if callback.from_user.username else callback.from_user.full_name
 
     if user_id == data["creator_id"]:
         return await callback.answer("Siz allaqachon ro'yxatdasiz! ✅", show_alert=False)
-
     if user_id in data["users"]:
         return await callback.answer("Allaqachon ro'yxatdasiz!", show_alert=False)
 
@@ -163,20 +246,16 @@ async def cb_join(callback: CallbackQuery):
     await callback.answer("Qo'shildingiz ✅")
 
     try:
-        await callback.message.edit_text(
-            make_text(data),
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
-                InlineKeyboardButton(text="⛔ Chiqish", callback_data=f"leave_{msg_id}")
-            ]])
-        )
+        await callback.message.edit_text(make_text(data), reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="⛔ Chiqish", callback_data=f"leave_{msg_id}")
+        ]]))
     except TelegramBadRequest:
         pass
 
     if len(get_others(data)) >= 1:
         try:
             await bot.edit_message_reply_markup(
-                chat_id=data["chat_id"],
-                message_id=msg_id,
+                chat_id=data["chat_id"], message_id=msg_id,
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
                     InlineKeyboardButton(text="📖 Boshlash", callback_data=f"boshlash_{msg_id}")
                 ]])
@@ -185,18 +264,17 @@ async def cb_join(callback: CallbackQuery):
             pass
 
 
+# ── Chiqish ──
 @dp.callback_query(F.data.startswith("leave_"))
 async def cb_leave(callback: CallbackQuery):
     msg_id = int(callback.data.split("_")[1])
     if msg_id not in xatm_db:
         return await callback.answer("Xatim topilmadi!", show_alert=True)
-
     data = xatm_db[msg_id]
     user_id = callback.from_user.id
 
     if user_id == data["creator_id"]:
         return await callback.answer()
-
     if user_id not in data["users"]:
         return await callback.answer("Siz ro'yxatda yo'qsiz!", show_alert=False)
 
@@ -204,20 +282,16 @@ async def cb_leave(callback: CallbackQuery):
     await callback.answer("Chiqdingiz ⛔")
 
     try:
-        await callback.message.edit_text(
-            make_text(data),
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
-                InlineKeyboardButton(text="➕ Qo'shilish", callback_data=f"join_{msg_id}")
-            ]])
-        )
+        await callback.message.edit_text(make_text(data), reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="➕ Qo'shilish", callback_data=f"join_{msg_id}")
+        ]]))
     except TelegramBadRequest:
         pass
 
     if len(get_others(data)) == 0:
         try:
             await bot.edit_message_reply_markup(
-                chat_id=data["chat_id"],
-                message_id=msg_id,
+                chat_id=data["chat_id"], message_id=msg_id,
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
                     InlineKeyboardButton(text="➕ Qo'shilish", callback_data=f"join_{msg_id}")
                 ]])
@@ -226,37 +300,285 @@ async def cb_leave(callback: CallbackQuery):
             pass
 
 
+# ── Boshlash ──
 @dp.callback_query(F.data.startswith("boshlash_"))
 async def cb_boshlash(callback: CallbackQuery):
     msg_id = int(callback.data.split("_")[1])
     if msg_id not in xatm_db:
         return await callback.answer("Xatim topilmadi!", show_alert=True)
-
     data = xatm_db[msg_id]
 
     if callback.from_user.id != data["creator_id"]:
         return await callback.answer("Faqat yaratuvchi boshlaydi!", show_alert=True)
 
     taqsimlangan = taqsimla(data["users"], jami=30)
+    data["taqsim"] = taqsimlangan
+    data["tayyor"] = []
+    jami = len(taqsimlangan)
+
     now = datetime.now().strftime("%d.%m.%Y %H:%M")
     lines = [f"🕌 <b>Xatim boshlandi!</b> | 🕐 {now}", ""]
-    lines.append(f"👥 Jami: {len(taqsimlangan)} kishi | 📖 30 juz\n")
-    for name, ulush, juz_text, sura_text in taqsimlangan:
+    lines.append(f"👥 Jami: {jami} kishi | 📖 30 juz\n")
+    for uid, name, ulush, juz_text, sura_text in taqsimlangan:
         lines.append(f"👤 {name}\n  📖 {juz_text}: {sura_text}\n")
 
+    kb = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text=f"✅ O'qiganlar: 0/{jami}", callback_data=f"noop_{msg_id}")
+    ]])
+
     try:
-        await callback.message.edit_text("\n".join(lines), reply_markup=None)
+        await callback.message.edit_text("\n".join(lines), reply_markup=kb)
     except TelegramBadRequest:
         pass
 
-    xatm_db.pop(msg_id, None)
+    # Statistika
+    for uid, name, ulush, juz_text, sura_text in taqsimlangan:
+        uid_str = str(uid)
+        if uid_str not in stats_db:
+            stats_db[uid_str] = {"ism": name, "jami_xatim": 0, "jami_juz": 0}
+        stats_db[uid_str]["ism"] = name
+        stats_db[uid_str]["jami_xatim"] += 1
+        stats_db[uid_str]["jami_juz"] += ulush
+    save_json(STATS_FILE, stats_db)
+
+    # Tarix
+    chat_id_str = str(data["chat_id"])
+    if chat_id_str not in tarix_db:
+        tarix_db[chat_id_str] = []
+    tarix_db[chat_id_str].append({
+        "vaqt": now,
+        "yaratuvchi": data["creator_username"],
+        "ishtirokchilar": jami,
+    })
+    tarix_db[chat_id_str] = tarix_db[chat_id_str][-50:]
+    save_json(TARIX_FILE, tarix_db)
+
+    # Eslatma
+    chat_title = data.get("chat_title", "Guruh")
+    yuborilamaganlar = []
+    for uid, name, ulush, juz_text, sura_text in taqsimlangan:
+        yuborildi = await eslatma_yuborish(uid, name, juz_text, sura_text, chat_title, msg_id)
+        if not yuborildi:
+            yuborilamaganlar.append(name)
+
+    if yuborilamaganlar:
+        ismlar = ", ".join(yuborilamaganlar)
+        try:
+            await bot.send_message(
+                chat_id=data["chat_id"],
+                text=f"⚠️ Quyidagilar botga <b>/start</b> yozmaganligi uchun eslatma yuborilamadi:\n{ismlar}\n\nIltimos, botga <b>/start</b> yozing!"
+            )
+        except:
+            pass
+
     await callback.answer("Boshlandi! 📖")
+
+
+# ── Tayyor (guruhda) ──
+@dp.callback_query(F.data.startswith("tayyor_"))
+async def cb_tayyor(callback: CallbackQuery):
+    msg_id = int(callback.data.split("_")[1])
+    if msg_id not in xatm_db:
+        return await callback.answer("Xatim topilmadi!", show_alert=True)
+
+    data = xatm_db[msg_id]
+    user_id = callback.from_user.id
+    taqsim_ids = [t[0] for t in data["taqsim"]]
+    jami = len(data["taqsim"])
+
+    if user_id not in taqsim_ids:
+        return await callback.answer("Siz bu xatimda qatnashmayapsiz!", show_alert=True)
+    if user_id in data["tayyor"]:
+        return await callback.answer("Allaqachon belgilagansiz! ✅", show_alert=False)
+
+    data["tayyor"].append(user_id)
+    tayyor_soni = len(data["tayyor"])
+    await callback.answer("Barakalloh! ✅", show_alert=True)
+
+    # Tugmani yangilaymiz
+    try:
+        current_text = callback.message.text or ""
+        if "📊 O'qildi:" in current_text:
+            current_text = current_text[:current_text.index("\n\n📊")]
+        progress = f"\n\n📊 O'qildi: {tayyor_soni}/{jami} kishi"
+        kb = InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text=f"✅ O'qiganlar: {tayyor_soni}/{jami}", callback_data=f"noop_{msg_id}")
+        ]])
+        await callback.message.edit_text(current_text + progress, reply_markup=kb)
+    except TelegramBadRequest:
+        pass
+
+    if tayyor_soni == jami:
+        await asyncio.sleep(1)
+        try:
+            await bot.send_message(
+                chat_id=data["chat_id"],
+                text=f"🎉 <b>Xatim yakunlandi!</b>\n\nBarcha {jami} kishi juzlarini o'qib bo'ldi!\nAlloh qabul qilsin! 🤲"
+            )
+        except:
+            pass
+        xatm_db.pop(msg_id, None)
+
+
+# ── Tayyor (lichkadan) ──
+@dp.callback_query(F.data.startswith("pm_tayyor_"))
+async def cb_pm_tayyor(callback: CallbackQuery):
+    parts = callback.data.split("_")
+    msg_id = int(parts[2])
+    uid = int(parts[3])
+
+    if msg_id not in xatm_db:
+        await callback.message.edit_text("✅ Javobingiz qabul qilindi! Alloh qabul qilsin! 🤲")
+        return await callback.answer()
+
+    data = xatm_db[msg_id]
+    jami = len(data["taqsim"])
+
+    if uid in data["tayyor"]:
+        await callback.message.edit_text("✅ Siz allaqachon o'qib bo'lgansiz!")
+        return await callback.answer()
+
+    data["tayyor"].append(uid)
+    tayyor_soni = len(data["tayyor"])
+
+    await callback.message.edit_text(
+        f"✅ <b>Barakalloh!</b>\n\nJuzingizni o'qib bo'ldingiz!\nAlloh qabul qilsin! 🤲\n\n"
+        f"📊 Umumiy holat: {tayyor_soni}/{jami} kishi o'qib bo'ldi."
+    )
+    await callback.answer()
+
+    # Guruh xabarini yangilash
+    try:
+        current_text = ""
+        kb = InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text=f"✅ O'qiganlar: {tayyor_soni}/{jami}", callback_data=f"noop_{msg_id}")
+        ]])
+        await bot.edit_message_reply_markup(
+            chat_id=data["chat_id"], message_id=msg_id, reply_markup=kb
+        )
+    except:
+        pass
+
+    if tayyor_soni == jami:
+        await asyncio.sleep(1)
+        try:
+            await bot.send_message(
+                chat_id=data["chat_id"],
+                text=f"🎉 <b>Xatim yakunlandi!</b>\n\nBarcha {jami} kishi juzlarini o'qib bo'ldi!\nAlloh qabul qilsin! 🤲"
+            )
+        except:
+            pass
+        xatm_db.pop(msg_id, None)
+
+
+# ── Keyinroq (lichkadan) ──
+@dp.callback_query(F.data.startswith("pm_keyin_"))
+async def cb_pm_keyin(callback: CallbackQuery):
+    await callback.message.edit_text(
+        "⏰ Xop, keyinroq o'qiysiz!\n\nO'qib bo'lgach guruhda <b>✅ O'qiganlar</b> tugmasini bosing."
+    )
+    await callback.answer("Eslab qoling! ⏰")
+
+
+# ── Noop ──
+@dp.callback_query(F.data.startswith("noop_"))
+async def cb_noop(callback: CallbackQuery):
+    await callback.answer()
+
+
+# ── /statistika ──
+@dp.message(Command("statistika"))
+async def cmd_statistika(message: types.Message):
+    if message.chat.type == "private":
+        return await message.answer("Bu buyruq faqat guruhda ishlaydi!")
+    user_id = str(message.from_user.id)
+    username = f"@{message.from_user.username}" if message.from_user.username else message.from_user.full_name
+
+    if user_id not in stats_db or stats_db[user_id]["jami_xatim"] == 0:
+        await message.answer(
+            f"📊 <b>{username} statistikasi</b>\n\n"
+            f"Hali birorta xatimda qatnashmadingiz.\n"
+            f"Guruhda /xatimyaratish bilan boshlang! 📖"
+        )
+        return
+
+    s = stats_db[user_id]
+    await message.answer(
+        f"📊 <b>{username} statistikasi</b>\n\n"
+        f"📖 Xatimlarda qatnashgan: <b>{s['jami_xatim']} marta</b>\n"
+        f"📚 Jami o'qilgan juzlar: <b>{s['jami_juz']} juz</b>\n\n"
+        f"Alloh qabul qilsin! 🤲"
+    )
+
+
+# ── /tarix ──
+@dp.message(Command("tarix"))
+async def cmd_tarix(message: types.Message):
+    if message.chat.type == "private":
+        return await message.answer("Bu buyruq faqat guruhda ishlaydi!")
+    chat_id_str = str(message.chat.id)
+
+    if chat_id_str not in tarix_db or not tarix_db[chat_id_str]:
+        await message.answer("📅 Bu guruhda hali xatim o'tkazilmagan.")
+        return
+
+    lines = ["📅 <b>Xatim tarixi (oxirgi 10 ta)</b>\n"]
+    for i, x in enumerate(reversed(tarix_db[chat_id_str][-10:]), 1):
+        lines.append(
+            f"{i}. 🕐 {x['vaqt']}\n"
+            f"   👤 Yaratuvchi: {x['yaratuvchi']}\n"
+            f"   👥 Ishtirokchilar: {x['ishtirokchilar']} kishi\n"
+        )
+    await message.answer("\n".join(lines))
+
+
+# ── /reyting ──
+@dp.message(Command("reyting"))
+async def cmd_reyting(message: types.Message):
+    if message.chat.type == "private":
+        return await message.answer("Bu buyruq faqat guruhda ishlaydi!")
+    if not stats_db:
+        await message.answer("🏆 Hali hech kim xatimda qatnashmagan.")
+        return
+
+    sorted_users = sorted(stats_db.values(), key=lambda x: x["jami_juz"], reverse=True)
+    lines = ["🏆 <b>Eng faol qatnashchilar</b>\n"]
+    medals = ["🥇", "🥈", "🥉"]
+
+    for i, s in enumerate(sorted_users[:10], 1):
+        medal = medals[i-1] if i <= 3 else f"{i}."
+        lines.append(
+            f"{medal} {s['ism']}\n"
+            f"   📖 {s['jami_xatim']} xatim | 📚 {s['jami_juz']} juz\n"
+        )
+    await message.answer("\n".join(lines))
+
+
+# ── Guruh a'zolarini saqlash (eng oxirida!) ──
+@dp.message(F.chat.type.in_({"group", "supergroup"}))
+async def track_users(message: types.Message):
+    if not message.from_user:
+        return
+    uid = str(message.from_user.id)
+    uname = f"@{message.from_user.username}" if message.from_user.username else message.from_user.full_name
+    chat_id = str(message.chat.id)
+    if uid not in users_db:
+        users_db[uid] = {"ism": uname, "guruhlar": []}
+    users_db[uid]["ism"] = uname
+    if "guruhlar" not in users_db[uid]:
+        users_db[uid]["guruhlar"] = []
+    if chat_id not in users_db[uid]["guruhlar"]:
+        users_db[uid]["guruhlar"].append(chat_id)
+        save_json(USERS_FILE, users_db)
 
 
 async def main():
     await bot.set_my_commands([
         BotCommand(command="start", description="Botni ishga tushirish"),
         BotCommand(command="xatimyaratish", description="Yangi xatim yaratish"),
+        BotCommand(command="statistika", description="Shaxsiy statistika"),
+        BotCommand(command="tarix", description="Guruh xatim tarixi"),
+        BotCommand(command="reyting", description="Eng faol qatnashchilar"),
     ])
     print("✅ Bot ishga tushdi!")
     await dp.start_polling(bot)
