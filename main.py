@@ -143,6 +143,15 @@ async def eslatma_yuborish(uid, name, juz_text, sura_text, chat_title, msg_id):
         return False
 
 
+SUPER_ADMIN_ID = 7637949390  # O'zingizning Telegram ID ingizni yozing!
+
+
+# ── /myid — ID ni bilish uchun ──
+@dp.message(Command("myid"))
+async def cmd_myid(message: types.Message):
+    await message.answer(f"🆔 Sizning ID ingiz: <code>{message.from_user.id}</code>")
+
+
 # ── /start ──
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
@@ -594,6 +603,70 @@ async def cmd_reyting(message: types.Message):
             f"   📖 {s['jami_xatim']} xatim | 📚 {s['jami_juz']} juz\n"
         )
     await message.answer("\n".join(lines))
+
+
+# ── /admin — Super admin panel ──
+@dp.message(Command("admin"))
+async def cmd_admin(message: types.Message):
+    if message.from_user.id != SUPER_ADMIN_ID:
+        return
+
+    # Statistika
+    jami_foydalanuvchi = len(users_db)
+    jami_guruh = set()
+    for u in users_db.values():
+        for g in u.get("guruhlar", []):
+            jami_guruh.add(g)
+
+    jami_xatim = sum(
+        sum(g.get("jami_xatim", 0) for g in u.get("guruhlar", {}).values())
+        for u in stats_db.values()
+    ) if stats_db else 0
+
+    lines = [
+        "👑 <b>Super Admin Panel</b>\n",
+        f"👥 Jami foydalanuvchilar: <b>{jami_foydalanuvchi}</b>",
+        f"💬 Jami guruhlar: <b>{len(jami_guruh)}</b>",
+        f"📖 Jami o'tkazilgan xatimlar: <b>{jami_xatim}</b>\n",
+        "📋 <b>Guruhlar ro'yxati:</b>",
+    ]
+
+    # Har bir guruh
+    guruh_nomlari = {}
+    for uid_str, u in users_db.items():
+        for g in u.get("guruhlar", []):
+            if g not in guruh_nomlari:
+                guruh_nomlari[g] = 0
+            guruh_nomlari[g] += 1
+
+    for g_id, a_soni in list(guruh_nomlari.items())[:20]:
+        lines.append(f"• Guruh ID: <code>{g_id}</code> — {a_soni} a'zo")
+
+    await message.answer("\n".join(lines))
+
+
+# ── /xabar — Hamma foydalanuvchilarga xabar yuborish ──
+@dp.message(Command("xabar"))
+async def cmd_broadcast(message: types.Message):
+    if message.from_user.id != SUPER_ADMIN_ID:
+        return
+    if not message.reply_to_message:
+        return await message.answer("Xabar yuborish uchun biror xabarga reply qiling!")
+
+    yuborildi = 0
+    yuborilmadi = 0
+    for uid_str in users_db:
+        try:
+            await bot.copy_message(
+                chat_id=int(uid_str),
+                from_chat_id=message.chat.id,
+                message_id=message.reply_to_message.message_id
+            )
+            yuborildi += 1
+        except:
+            yuborilmadi += 1
+
+    await message.answer(f"✅ Yuborildi: {yuborildi}\n❌ Yuborilamdi: {yuborilmadi}")
 
 
 # ── Guruh a'zolarini saqlash (eng oxirida!) ──
