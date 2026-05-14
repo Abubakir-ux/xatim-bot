@@ -12,6 +12,8 @@ from aiogram.client.default import DefaultBotProperties
 
 API_TOKEN = '8655041954:AAF4QcY6UCqSWdkOsaCgrY_3l_anXs1o4R4'
 
+SUPER_ADMIN_ID = 7637949390
+
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=API_TOKEN, default=DefaultBotProperties(parse_mode='HTML'))
 dp = Dispatcher()
@@ -608,43 +610,43 @@ async def cmd_reyting(message: types.Message):
 # ── /admin — Super admin panel ──
 @dp.message(Command("admin"))
 async def cmd_admin(message: types.Message):
+
     if message.from_user.id != SUPER_ADMIN_ID:
         return
 
-    # Statistika
     jami_foydalanuvchi = len(users_db)
-    jami_guruh = set()
-    for u in users_db.values():
-        for g in u.get("guruhlar", []):
-            jami_guruh.add(g)
 
-    jami_xatim = sum(
-        sum(g.get("jami_xatim", 0) for g in u.get("guruhlar", {}).values())
-        for u in stats_db.values()
-    ) if stats_db else 0
+    guruhlar = {}
 
-    lines = [
-        "👑 <b>Super Admin Panel</b>\n",
-        f"👥 Jami foydalanuvchilar: <b>{jami_foydalanuvchi}</b>",
-        f"💬 Jami guruhlar: <b>{len(jami_guruh)}</b>",
-        f"📖 Jami o'tkazilgan xatimlar: <b>{jami_xatim}</b>\n",
-        "📋 <b>Guruhlar ro'yxati:</b>",
-    ]
+    for uid_str, data in users_db.items():
 
-    # Har bir guruh
-    guruh_nomlari = {}
-    for uid_str, u in users_db.items():
-        for g in u.get("guruhlar", []):
-            if g not in guruh_nomlari:
-                guruh_nomlari[g] = 0
-            guruh_nomlari[g] += 1
+        if "guruhlar" in data:
 
-    for g_id, a_soni in list(guruh_nomlari.items())[:20]:
-        lines.append(f"• Guruh ID: <code>{g_id}</code> — {a_soni} a'zo")
+            for group_id in data["guruhlar"]:
 
-    await message.answer("\n".join(lines))
+                if group_id not in guruhlar:
+                    guruhlar[group_id] = 0
 
+                guruhlar[group_id] += 1
 
+    text = (
+        f"👑 <b>SUPER ADMIN PANEL</b>\n\n"
+        f"👤 Foydalanuvchilar: <b>{jami_foydalanuvchi}</b>\n"
+        f"👥 Guruhlar: <b>{len(guruhlar)}</b>\n\n"
+    )
+
+    if guruhlar:
+
+        text += "📋 <b>Bot qo'shilgan guruhlar:</b>\n\n"
+
+        for group_id, count in list(guruhlar.items())[:50]:
+
+            text += (
+                f"🆔 <code>{group_id}</code>\n"
+                f"👤 Ishlatgan odamlar: {count}\n\n"
+            )
+
+    await message.answer(text)
 # ── /xabar — Hamma foydalanuvchilarga xabar yuborish ──
 @dp.message(Command("xabar"))
 async def cmd_broadcast(message: types.Message):
