@@ -12,7 +12,7 @@ from aiogram.client.default import DefaultBotProperties
 
 API_TOKEN = '8655041954:AAF4QcY6UCqSWdkOsaCgrY_3l_anXs1o4R4'
 
-SUPER_ADMIN_ID = 7637949390
+SUPER_ADMIN_ID = 7480459140
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=API_TOKEN, default=DefaultBotProperties(parse_mode='HTML'))
