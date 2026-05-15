@@ -631,16 +631,8 @@ async def cmd_admin(message: types.Message):
         for g_stats in s.get("guruhlar", {}).values():
             jami_xatim += g_stats.get("jami_xatim", 0)
 
-    lines = [
-        "👑 <b>SUPER ADMIN PANEL</b>\n",
-        f"👤 Jami foydalanuvchilar: <b>{jami_user}</b>",
-        f"💬 Jami guruhlar: <b>{len(guruhlar)}</b>",
-        f"📖 Jami xatimlar: <b>{jami_xatim}</b>\n",
-        "─────────────────────",
-        "📋 <b>Guruhlar ro'yxati:</b>\n",
-    ]
-
-    faol_guruhlar = 0
+    faol_guruhlar = 0  # oldin hisoblaymiz
+    guruh_lines = []  # guruh ma'lumotlari alohida
     for g_id, info in list(guruhlar.items())[:50]:
         # Bot hali guruhda borligini tekshiramiz
         try:
@@ -665,15 +657,22 @@ async def cmd_admin(message: types.Message):
         # Kim qo'shgani
         qoshgan = users_db.get(info["qoshgan"], {}).get("ism", "Noma'lum")
 
-        lines.append(
+        guruh_lines.append(
             f"🏠 <b>{guruh_ismi}</b>\n"
             f"   👥 A'zolar: {info['azolar']} kishi\n"
             f"   📖 Xatimlar: {g_xatim} ta\n"
             f"   ➕ Qo'shgan: {qoshgan}\n"
         )
 
-    # Jami guruhlar sonini yangilaymiz
-    lines[2] = f"💬 Jami guruhlar: <b>{faol_guruhlar}</b>"
+    # Yakuniy xabarni yig'amiz
+    lines = [
+        "👑 <b>SUPER ADMIN PANEL</b>\n",
+        f"👤 Jami foydalanuvchilar: <b>{jami_user}</b>",
+        f"💬 Faol guruhlar: <b>{faol_guruhlar}</b>",
+        f"📖 Jami xatimlar: <b>{jami_xatim}</b>\n",
+        "─────────────────────",
+        "📋 <b>Guruhlar ro'yxati:</b>\n",
+    ] + guruh_lines
 
     await message.answer("\n".join(lines))
 
