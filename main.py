@@ -640,13 +640,21 @@ async def cmd_admin(message: types.Message):
         "📋 <b>Guruhlar ro'yxati:</b>\n",
     ]
 
-    for g_id, info in list(guruhlar.items())[:20]:
-        # Guruh ismini olamiz
+    faol_guruhlar = 0
+    for g_id, info in list(guruhlar.items())[:50]:
+        # Bot hali guruhda borligini tekshiramiz
         try:
             chat = await bot.get_chat(int(g_id))
             guruh_ismi = chat.title or g_id
+            # Bot memberni tekshiramiz
+            bot_info = await bot.get_me()
+            member = await bot.get_chat_member(int(g_id), bot_info.id)
+            if member.status not in ("administrator", "creator", "member"):
+                continue  # Bot guruhda yo'q - o'tkazib yuboramiz
         except:
-            guruh_ismi = f"Guruh {g_id}"
+            continue  # Guruhga kira olmasa - o'tkazib yuboramiz
+
+        faol_guruhlar += 1
 
         # Guruh xatim soni
         g_xatim = sum(
@@ -663,6 +671,9 @@ async def cmd_admin(message: types.Message):
             f"   📖 Xatimlar: {g_xatim} ta\n"
             f"   ➕ Qo'shgan: {qoshgan}\n"
         )
+
+    # Jami guruhlar sonini yangilaymiz
+    lines[2] = f"💬 Jami guruhlar: <b>{faol_guruhlar}</b>"
 
     await message.answer("\n".join(lines))
 
