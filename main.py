@@ -163,7 +163,7 @@ async def cmd_start(message: types.Message):
     save_json(USERS_FILE, users_db)
 
     text = (
-        "🕌 <b>Hatim.uz Botiga Xush Kelibsiz!</b>\n\n"
+        "🕌 <b>Xatim.uz Botiga Xush Kelibsiz!</b>\n\n"
         "Bu bot guruhda <b>Xatim</b> tashkil qilishga yordam beradi.\n\n"
         "📌 <b>Qanday ishlaydi?</b>\n\n"
         "1️⃣ Botni guruhingizga qo'shing va <b>Admin</b> qiling\n"
@@ -615,10 +615,9 @@ async def cmd_admin(message: types.Message):
     if not message.from_user or message.from_user.id != SUPER_ADMIN_ID:
         return
 
-    # Jami foydalanuvchilar
     jami_user = len(users_db)
 
-    # Guruhlar va kim qo'shgani
+    # Guruhlar ro'yxati
     guruhlar = {}
     for uid_str, uinfo in users_db.items():
         for g_id in uinfo.get("guruhlar", []):
@@ -628,7 +627,7 @@ async def cmd_admin(message: types.Message):
 
     # Jami xatimlar
     jami_xatim = 0
-    for uid_str, s in stats_db.items():
+    for s in stats_db.values():
         for g_stats in s.get("guruhlar", {}).values():
             jami_xatim += g_stats.get("jami_xatim", 0)
 
@@ -636,24 +635,33 @@ async def cmd_admin(message: types.Message):
         "👑 <b>SUPER ADMIN PANEL</b>\n",
         f"👤 Jami foydalanuvchilar: <b>{jami_user}</b>",
         f"💬 Jami guruhlar: <b>{len(guruhlar)}</b>",
-        f"📖 Jami o'tkazilgan xatimlar: <b>{jami_xatim}</b>\n",
+        f"📖 Jami xatimlar: <b>{jami_xatim}</b>\n",
         "─────────────────────",
         "📋 <b>Guruhlar ro'yxati:</b>\n",
     ]
 
     for g_id, info in list(guruhlar.items())[:20]:
-        # Guruhni kim qo'shganini topamiz
-        qoshgan_ism = users_db.get(info["qoshgan"], {}).get("ism", "Noma'lum")
+        # Guruh ismini olamiz
+        try:
+            chat = await bot.get_chat(int(g_id))
+            guruh_ismi = chat.title or g_id
+        except:
+            guruh_ismi = f"Guruh {g_id}"
+
         # Guruh xatim soni
         g_xatim = sum(
             s.get("guruhlar", {}).get(g_id, {}).get("jami_xatim", 0)
             for s in stats_db.values()
         )
+
+        # Kim qo'shgani
+        qoshgan = users_db.get(info["qoshgan"], {}).get("ism", "Noma'lum")
+
         lines.append(
-            f"🏠 Guruh: <code>{g_id}</code>\n"
-            f"   👤 A'zolar: {info['azolar']} kishi\n"
+            f"🏠 <b>{guruh_ismi}</b>\n"
+            f"   👥 A'zolar: {info['azolar']} kishi\n"
             f"   📖 Xatimlar: {g_xatim} ta\n"
-            f"   ➕ Qo'shgan: {qoshgan_ism}\n"
+            f"   ➕ Qo'shgan: {qoshgan}\n"
         )
 
     await message.answer("\n".join(lines))
