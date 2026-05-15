@@ -163,7 +163,7 @@ async def cmd_start(message: types.Message):
     save_json(USERS_FILE, users_db)
 
     text = (
-        "🕌 <b>Xatim.uz Botiga Xush Kelibsiz!</b>\n\n"
+        "🕌 <b>Hatim.uz Botiga Xush Kelibsiz!</b>\n\n"
         "Bu bot guruhda <b>Xatim</b> tashkil qilishga yordam beradi.\n\n"
         "📌 <b>Qanday ishlaydi?</b>\n\n"
         "1️⃣ Botni guruhingizga qo'shing va <b>Admin</b> qiling\n"
