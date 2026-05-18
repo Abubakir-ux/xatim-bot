@@ -121,7 +121,7 @@ def taqsimla(users, jami=30):
 
 def get_others(data):
     return [uid for uid in data["users"] if uid != data["creator_id"]]
-[18.05.2026 11:09] A7: async def eslatma_yuborish(uid, name, juz_text, sura_text, chat_title, msg_id):
+async def eslatma_yuborish(uid, name, juz_text, sura_text, chat_title, msg_id):
     kb = InlineKeyboardMarkup(inline_keyboard=[[
         InlineKeyboardButton(text="✅ Ha, o'qidim!", callback_data=f"pm_tayyor_{msg_id}_{uid}"),
         InlineKeyboardButton(text="⏰ Keyinroq", callback_data=f"pm_keyin_{msg_id}_{uid}"),
