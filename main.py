@@ -213,7 +213,7 @@ async def cmd_xatim(message: types.Message):
             )
     except:
         pass
-[18.05.2026 11:09] A7: creator_id = user.id
+creator_id = user.id
     creator_username = f"@{user.username}" if user.username else user.full_name
     data = {
         "creator_id": creator_id,
@@ -318,7 +318,7 @@ async def cb_leave(callback: CallbackQuery):
 
     del data["users"][user_id]
     await callback.answer("Chiqdingiz ⛔️")
-[18.05.2026 11:09] A7: try:
+try:
         await callback.message.edit_text(make_text(data), reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
             InlineKeyboardButton(text="➕ Qo'shilish", callback_data=f"join_{msg_id}")
         ]]))
@@ -424,7 +424,7 @@ async def cb_tayyor(callback: CallbackQuery):
     user_id = callback.from_user.id
     taqsim_ids = [t[0] for t in data["taqsim"]]
     jami = len(data["taqsim"])
-[18.05.2026 11:09] A7: if user_id not in taqsim_ids:
+if user_id not in taqsim_ids:
         return await callback.answer("Siz bu xatimda qatnashmayapsiz!", show_alert=True)
     if user_id in data["tayyor"]:
         return await callback.answer("Allaqachon belgilagansiz! ✅", show_alert=False)
@@ -540,7 +540,7 @@ async def cmd_statistika(message: types.Message):
             f"/xatimyaratish bilan boshlang! 📖"
         )
         return
-[18.05.2026 11:09] A7: await message.answer(
+await message.answer(
         f"📊 <b>{username} statistikasi</b>\n\n"
         f"📖 Bu guruhda xatimlarda qatnashgan: <b>{guruh_stats['jami_xatim']} marta</b>\n"
         f"📚 Jami o'qilgan juzlar: <b>{guruh_stats['jami_juz']} juz</b>\n\n"
@@ -657,7 +657,7 @@ async def cmd_admin(message: types.Message):
             f"   📖 Xatimlar: {g_xatim} ta\n"
             f"   ➕ Qo'shgan: {qoshgan}\n"
         )
-[18.05.2026 11:09] A7: # Yakuniy xabarni yig'amiz
+# Yakuniy xabarni yig'amiz
     lines = [
         "👑 <b>SUPER ADMIN PANEL</b>\n",
         f"👤 Jami foydalanuvchilar: <b>{jami_user}</b>",
@@ -723,5 +723,5 @@ async def main():
     print("✅ Bot ishga tushdi!")
     await dp.start_polling(bot)
 
-if name == "main":
+if __name__ == "__main__"::
     asyncio.run(main())
