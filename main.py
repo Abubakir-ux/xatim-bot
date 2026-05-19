@@ -211,9 +211,10 @@ async def cmd_xatim(message: types.Message):
                 "Iltimos, botni admin qiling!",
                 reply_markup=kb
             )
-    except:
+    except Exception:
         pass
-creator_id = user.id
+        
+    creator_id = user.id
     creator_username = f"@{user.username}" if user.username else user.full_name
     data = {
         "creator_id": creator_id,
