@@ -599,26 +599,61 @@ async def cmd_admin(message: types.Message):
 
     jami_user = len(users_db)
 
-    # Guruhlar ro'yxatini tezkor yig'ish (API so'rovlarisiz, faqat bazadan)
-    guruhlar = set()
+    # Guruhlar ro'yxati
+    guruhlar = {}
     for uid_str, uinfo in users_db.items():
         for g_id in uinfo.get("guruhlar", []):
-            guruhlar.add(g_id)
+            if g_id not in guruhlar:
+                guruhlar[g_id] = {"azolar": 0, "qoshgan": uid_str}
+            guruhlar[g_id]["azolar"] += 1
 
-    # Jami xatimlar soni
+    # Jami xatimlar
     jami_xatim = 0
     for s in stats_db.values():
         for g_stats in s.get("guruhlar", {}).values():
             jami_xatim += g_stats.get("jami_xatim", 0)
 
+    faol_guruhlar = 0  # oldin hisoblaymiz
+    guruh_lines = []  # guruh ma'lumotlari alohida
+    for g_id, info in list(guruhlar.items())[:50]:
+        # Bot hali guruhda borligini tekshiramiz
+        try:
+            chat = await bot.get_chat(int(g_id))
+            guruh_ismi = chat.title or g_id
+            # Bot memberni tekshiramiz
+            bot_info = await bot.get_me()
+            member = await bot.get_chat_member(int(g_id), bot_info.id)
+            if member.status not in ("administrator", "creator", "member"):
+                continue  # Bot guruhda yo'q - o'tkazib yuboramiz
+        except:
+            continue  # Guruhga kira olmasa - o'tkazib yuboramiz
+
+        faol_guruhlar += 1
+
+        # Guruh xatim soni
+        g_xatim = sum(
+            s.get("guruhlar", {}).get(g_id, {}).get("jami_xatim", 0)
+            for s in stats_db.values()
+        )
+
+        # Kim qo'shgani
+        qoshgan = users_db.get(info["qoshgan"], {}).get("ism", "Noma'lum")
+
+        guruh_lines.append(
+            f"🏠 <b>{guruh_ismi}</b>\n"
+            f"   👥 A'zolar: {info['azolar']} kishi\n"
+            f"   📖 Xatimlar: {g_xatim} ta\n"
+            f"   ➕ Qo'shgan: {qoshgan}\n"
+        )
+# Yakuniy xabarni yig'amiz
     lines = [
         "👑 <b>SUPER ADMIN PANEL</b>\n",
         f"👤 Jami foydalanuvchilar: <b>{jami_user}</b>",
-        f"💬 Jami guruhlar: <b>{len(guruhlar)}</b>",
+        f"💬 Faol guruhlar: <b>{faol_guruhlar}</b>",
         f"📖 Jami xatimlar: <b>{jami_xatim}</b>\n",
         "─────────────────────",
-        "⚠️ <i>Eslatma: Botni sekinlashtirmaslik uchun guruhlar ro'yxati API orqali tekshirilmasdan umumiy ko'rsatildi.</i>"
-    ]
+        "📋 <b>Guruhlar ro'yxati:</b>\n",
+    ] + guruh_lines
 
     await message.answer("\n".join(lines))
 
