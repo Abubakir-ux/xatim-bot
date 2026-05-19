@@ -10,7 +10,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQu
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.client.default import DefaultBotProperties
 
-API_TOKEN = '8655041954:AAFYp1rRrJ_qT63nxww6B19g9zPwK1df9ZY'
+API_TOKEN = '8655041954:AAF4QcY6UCqSWdkOsaCgrY_3l_anXs1o4R4'
 SUPER_ADMIN_ID = 7480459140
 
 logging.basicConfig(level=logging.INFO)
@@ -26,7 +26,7 @@ def load_json(filename):
         try:
             with open(filename, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except Exception:
+        except:
             return {}
     return {}
 
@@ -75,6 +75,7 @@ JUZ_INFO = {
     30: "An-Naba 1 - An-Nos 6",
 }
 
+
 def make_text(data):
     now = datetime.now().strftime("%d.%m.%Y %H:%M")
     lines = [f"📖 <b>Xatim yaratildi!</b> | 🕐 {now}", ""]
@@ -87,6 +88,7 @@ def make_text(data):
     else:
         lines.append("📋 Qatnashuvchilar: hali yo'q")
     return "\n".join(lines)
+
 
 def taqsimla(users, jami=30):
     n = len(users)
@@ -116,8 +118,10 @@ def taqsimla(users, jami=30):
         current += ulush
     return result
 
+
 def get_others(data):
     return [uid for uid in data["users"] if uid != data["creator_id"]]
+
 
 async def eslatma_yuborish(uid, name, juz_text, sura_text, chat_title, msg_id):
     kb = InlineKeyboardMarkup(inline_keyboard=[[
@@ -137,10 +141,12 @@ async def eslatma_yuborish(uid, name, juz_text, sura_text, chat_title, msg_id):
     except (TelegramForbiddenError, Exception):
         return False
 
+
 # ── /myid ──
 @dp.message(Command("myid"))
 async def cmd_myid(message: types.Message):
     await message.answer(f"🆔 Sizning ID ingiz: <code>{message.from_user.id}</code>")
+
 
 # ── /start ──
 @dp.message(Command("start"))
@@ -182,6 +188,7 @@ async def cmd_start(message: types.Message):
     ]])
     await message.answer(text, reply_markup=kb)
 
+
 # ── /xatimyaratish ──
 @dp.message(Command("xatimyaratish"))
 async def cmd_xatim(message: types.Message):
@@ -206,9 +213,9 @@ async def cmd_xatim(message: types.Message):
                 "Iltimos, botni admin qiling!",
                 reply_markup=kb
             )
-    except Exception:
+    except:
         pass
-        
+
     creator_id = user.id
     creator_username = f"@{user.username}" if user.username else user.full_name
     data = {
@@ -257,8 +264,9 @@ async def cmd_xatim(message: types.Message):
                 reply_markup=elon_kb,
                 disable_web_page_preview=True
             )
-        except Exception:
+        except:
             pass
+
 
 # ── Qo'shilish ──
 @dp.callback_query(F.data.startswith("join_"))
@@ -280,7 +288,7 @@ async def cb_join(callback: CallbackQuery):
 
     try:
         await callback.message.edit_text(make_text(data), reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
-            InlineKeyboardButton(text="⛔️ Chiqish", callback_data=f"leave_{msg_id}")
+            InlineKeyboardButton(text="⛔ Chiqish", callback_data=f"leave_{msg_id}")
         ]]))
     except TelegramBadRequest:
         pass
@@ -295,6 +303,7 @@ async def cb_join(callback: CallbackQuery):
             )
         except TelegramBadRequest:
             pass
+
 
 # ── Chiqish ──
 @dp.callback_query(F.data.startswith("leave_"))
@@ -311,8 +320,8 @@ async def cb_leave(callback: CallbackQuery):
         return await callback.answer("Siz ro'yxatda yo'qsiz!", show_alert=False)
 
     del data["users"][user_id]
-    await callback.answer("Chiqdingiz ⛔️")
-    
+    await callback.answer("Chiqdingiz ⛔")
+
     try:
         await callback.message.edit_text(make_text(data), reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
             InlineKeyboardButton(text="➕ Qo'shilish", callback_data=f"join_{msg_id}")
@@ -330,6 +339,7 @@ async def cb_leave(callback: CallbackQuery):
             )
         except TelegramBadRequest:
             pass
+
 
 # ── Boshlash ──
 @dp.callback_query(F.data.startswith("boshlash_"))
@@ -401,10 +411,11 @@ async def cb_boshlash(callback: CallbackQuery):
                 chat_id=data["chat_id"],
                 text=f"⚠️ Quyidagilar botga <b>/start</b> yozmaganligi uchun eslatma yuborilamadi:\n{ismlar}\n\nIltimos, botga <b>/start</b> yozing!"
             )
-        except Exception:
+        except:
             pass
 
     await callback.answer("Boshlandi! 📖")
+
 
 # ── Tayyor (guruhda) ──
 @dp.callback_query(F.data.startswith("tayyor_"))
@@ -417,7 +428,7 @@ async def cb_tayyor(callback: CallbackQuery):
     user_id = callback.from_user.id
     taqsim_ids = [t[0] for t in data["taqsim"]]
     jami = len(data["taqsim"])
-    
+
     if user_id not in taqsim_ids:
         return await callback.answer("Siz bu xatimda qatnashmayapsiz!", show_alert=True)
     if user_id in data["tayyor"]:
@@ -446,9 +457,10 @@ async def cb_tayyor(callback: CallbackQuery):
                 chat_id=data["chat_id"],
                 text=f"🎉 <b>Xatim yakunlandi!</b>\n\nBarcha {jami} kishi juzlarini o'qib bo'ldi!\nAlloh qabul qilsin! 🤲"
             )
-        except Exception:
+        except:
             pass
         xatm_db.pop(msg_id, None)
+
 
 # ── Tayyor (lichkadan) ──
 @dp.callback_query(F.data.startswith("pm_tayyor_"))
@@ -484,7 +496,7 @@ async def cb_pm_tayyor(callback: CallbackQuery):
         await bot.edit_message_reply_markup(
             chat_id=data["chat_id"], message_id=msg_id, reply_markup=kb
         )
-    except Exception:
+    except:
         pass
 
     if tayyor_soni == jami:
@@ -494,9 +506,10 @@ async def cb_pm_tayyor(callback: CallbackQuery):
                 chat_id=data["chat_id"],
                 text=f"🎉 <b>Xatim yakunlandi!</b>\n\nBarcha {jami} kishi juzlarini o'qib bo'ldi!\nAlloh qabul qilsin! 🤲"
             )
-        except Exception:
+        except:
             pass
         xatm_db.pop(msg_id, None)
+
 
 # ── Keyinroq ──
 @dp.callback_query(F.data.startswith("pm_keyin_"))
@@ -506,10 +519,12 @@ async def cb_pm_keyin(callback: CallbackQuery):
     )
     await callback.answer("Eslab qoling! ⏰")
 
+
 # ── Noop ──
 @dp.callback_query(F.data.startswith("noop_"))
 async def cb_noop(callback: CallbackQuery):
     await callback.answer()
+
 
 # ── /statistika ──
 @dp.message(Command("statistika"))
@@ -538,6 +553,7 @@ async def cmd_statistika(message: types.Message):
         f"Alloh qabul qilsin! 🤲"
     )
 
+
 # ── /tarix ──
 @dp.message(Command("tarix"))
 async def cmd_tarix(message: types.Message):
@@ -557,6 +573,7 @@ async def cmd_tarix(message: types.Message):
             f"   👥 Ishtirokchilar: {x['ishtirokchilar']} kishi\n"
         )
     await message.answer("\n".join(lines))
+
 
 # ── /reyting ──
 @dp.message(Command("reyting"))
@@ -590,6 +607,7 @@ async def cmd_reyting(message: types.Message):
             f"   📖 {s['jami_xatim']} xatim | 📚 {s['jami_juz']} juz\n"
         )
     await message.answer("\n".join(lines))
+
 
 # ── /admin — faqat SUPER_ADMIN_ID ──
 @dp.message(Command("admin"))
@@ -645,7 +663,8 @@ async def cmd_admin(message: types.Message):
             f"   📖 Xatimlar: {g_xatim} ta\n"
             f"   ➕ Qo'shgan: {qoshgan}\n"
         )
-# Yakuniy xabarni yig'amiz
+
+    # Yakuniy xabarni yig'amiz
     lines = [
         "👑 <b>SUPER ADMIN PANEL</b>\n",
         f"👤 Jami foydalanuvchilar: <b>{jami_user}</b>",
@@ -656,6 +675,7 @@ async def cmd_admin(message: types.Message):
     ] + guruh_lines
 
     await message.answer("\n".join(lines))
+
 
 # ── /xabar ──
 @dp.message(Command("xabar"))
@@ -675,10 +695,11 @@ async def cmd_broadcast(message: types.Message):
                 message_id=message.reply_to_message.message_id
             )
             yuborildi += 1
-        except Exception:
+        except:
             yuborilmadi += 1
 
     await message.answer(f"✅ Yuborildi: {yuborildi}\n❌ Yuborilmadi: {yuborilmadi}")
+
 
 # ── Guruh a'zolarini saqlash (eng oxirida!) ──
 @dp.message(F.chat.type.in_({"group", "supergroup"}))
@@ -696,6 +717,7 @@ async def track_users(message: types.Message):
     if chat_id not in users_db[uid]["guruhlar"]:
         users_db[uid]["guruhlar"].append(chat_id)
         save_json(USERS_FILE, users_db)
+
 
 async def main():
     await bot.set_my_commands([
