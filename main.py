@@ -10,7 +10,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQu
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.client.default import DefaultBotProperties
 
-API_TOKEN = '8655041954:AAF4QcY6UCqSWdkOsaCgrY_3l_anXs1o4R4'
+API_TOKEN = '8655041954:AAFYp1rRrJ_qT63nxww6B19g9zPwK1df9ZY'
 SUPER_ADMIN_ID = 7480459140
 
 logging.basicConfig(level=logging.INFO)
@@ -514,10 +514,66 @@ async def cb_pm_tayyor(callback: CallbackQuery):
 # ── Keyinroq ──
 @dp.callback_query(F.data.startswith("pm_keyin_"))
 async def cb_pm_keyin(callback: CallbackQuery):
+    parts = callback.data.split("_")
+    msg_id = int(parts[2])
+    uid = int(parts[3])
+
     await callback.message.edit_text(
-        "⏰ Xop, keyinroq o'qiysiz!\n\nO'qib bo'lgach guruhda <b>✅ O'qiganlar</b> tugmasini bosing."
+        "⏰ Xop, keyinroq o'qiysiz!\n\n3 soatdan keyin sizga yana eslatma yuboramiz."
     )
-    await callback.answer("Eslab qoling! ⏰")
+    await callback.answer("3 soatdan keyin eslatamiz! ⏰")
+
+    # 3 soat kutib qayta eslatma yuboramiz
+    asyncio.create_task(qayta_eslatma(uid, msg_id, callback.message))
+
+
+async def qayta_eslatma(uid, msg_id, old_message):
+    """3 soat kutib qayta eslatma yuborish"""
+    await asyncio.sleep(3 * 60 * 60)  # 3 soat
+
+    # Xatim hali davom etayaptimi?
+    if msg_id not in xatm_db:
+        return
+
+    data = xatm_db[msg_id]
+
+    # Odam allaqachon o'qib bo'ldimi?
+    if uid in data["tayyor"]:
+        return
+
+    # Odam hali xatimda bormi?
+    taqsim_ids = [t[0] for t in data["taqsim"]]
+    if uid not in taqsim_ids:
+        return
+
+    # Uning juz ma'lumotini topamiz
+    juz_text = ""
+    sura_text = ""
+    for t in data["taqsim"]:
+        if t[0] == uid:
+            juz_text = t[3]
+            sura_text = t[4]
+            break
+
+    chat_title = data.get("chat_title", "Guruh")
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="✅ Ha, o'qidim!", callback_data=f"pm_tayyor_{msg_id}_{uid}"),
+        InlineKeyboardButton(text="⏰ Keyinroq", callback_data=f"pm_keyin_{msg_id}_{uid}"),
+    ]])
+
+    try:
+        await bot.send_message(
+            chat_id=uid,
+            text=f"🔔 <b>Eslatma!</b>\n\n"
+                 f"<b>{chat_title}</b> guruhidagi xatimda sizga tegishli juz hali o'qilmagan.\n\n"
+                 f"Sizga tegishli: <b>{juz_text}</b>\n"
+                 f"📌 {sura_text}\n\n"
+                 f"O'qib bo'ldingizmi?",
+            reply_markup=kb
+        )
+    except:
+        pass
 
 
 # ── Noop ──
