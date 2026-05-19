@@ -26,7 +26,7 @@ def load_json(filename):
         try:
             with open(filename, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except:
+        except Exception:
             return {}
     return {}
 
@@ -75,7 +75,6 @@ JUZ_INFO = {
     30: "An-Naba 1 - An-Nos 6",
 }
 
-
 def make_text(data):
     now = datetime.now().strftime("%d.%m.%Y %H:%M")
     lines = [f"📖 <b>Xatim yaratildi!</b> | 🕐 {now}", ""]
@@ -88,7 +87,6 @@ def make_text(data):
     else:
         lines.append("📋 Qatnashuvchilar: hali yo'q")
     return "\n".join(lines)
-
 
 def taqsimla(users, jami=30):
     n = len(users)
@@ -118,9 +116,9 @@ def taqsimla(users, jami=30):
         current += ulush
     return result
 
-
 def get_others(data):
     return [uid for uid in data["users"] if uid != data["creator_id"]]
+
 async def eslatma_yuborish(uid, name, juz_text, sura_text, chat_title, msg_id):
     kb = InlineKeyboardMarkup(inline_keyboard=[[
         InlineKeyboardButton(text="✅ Ha, o'qidim!", callback_data=f"pm_tayyor_{msg_id}_{uid}"),
@@ -139,12 +137,10 @@ async def eslatma_yuborish(uid, name, juz_text, sura_text, chat_title, msg_id):
     except (TelegramForbiddenError, Exception):
         return False
 
-
 # ── /myid ──
 @dp.message(Command("myid"))
 async def cmd_myid(message: types.Message):
     await message.answer(f"🆔 Sizning ID ingiz: <code>{message.from_user.id}</code>")
-
 
 # ── /start ──
 @dp.message(Command("start"))
@@ -185,7 +181,6 @@ async def cmd_start(message: types.Message):
         )
     ]])
     await message.answer(text, reply_markup=kb)
-
 
 # ── /xatimyaratish ──
 @dp.message(Command("xatimyaratish"))
@@ -262,9 +257,8 @@ async def cmd_xatim(message: types.Message):
                 reply_markup=elon_kb,
                 disable_web_page_preview=True
             )
-        except:
+        except Exception:
             pass
-
 
 # ── Qo'shilish ──
 @dp.callback_query(F.data.startswith("join_"))
@@ -302,7 +296,6 @@ async def cb_join(callback: CallbackQuery):
         except TelegramBadRequest:
             pass
 
-
 # ── Chiqish ──
 @dp.callback_query(F.data.startswith("leave_"))
 async def cb_leave(callback: CallbackQuery):
@@ -319,7 +312,8 @@ async def cb_leave(callback: CallbackQuery):
 
     del data["users"][user_id]
     await callback.answer("Chiqdingiz ⛔️")
-try:
+    
+    try:
         await callback.message.edit_text(make_text(data), reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
             InlineKeyboardButton(text="➕ Qo'shilish", callback_data=f"join_{msg_id}")
         ]]))
@@ -336,7 +330,6 @@ try:
             )
         except TelegramBadRequest:
             pass
-
 
 # ── Boshlash ──
 @dp.callback_query(F.data.startswith("boshlash_"))
@@ -408,11 +401,10 @@ async def cb_boshlash(callback: CallbackQuery):
                 chat_id=data["chat_id"],
                 text=f"⚠️ Quyidagilar botga <b>/start</b> yozmaganligi uchun eslatma yuborilamadi:\n{ismlar}\n\nIltimos, botga <b>/start</b> yozing!"
             )
-        except:
+        except Exception:
             pass
 
     await callback.answer("Boshlandi! 📖")
-
 
 # ── Tayyor (guruhda) ──
 @dp.callback_query(F.data.startswith("tayyor_"))
@@ -425,7 +417,8 @@ async def cb_tayyor(callback: CallbackQuery):
     user_id = callback.from_user.id
     taqsim_ids = [t[0] for t in data["taqsim"]]
     jami = len(data["taqsim"])
-if user_id not in taqsim_ids:
+    
+    if user_id not in taqsim_ids:
         return await callback.answer("Siz bu xatimda qatnashmayapsiz!", show_alert=True)
     if user_id in data["tayyor"]:
         return await callback.answer("Allaqachon belgilagansiz! ✅", show_alert=False)
@@ -453,10 +446,9 @@ if user_id not in taqsim_ids:
                 chat_id=data["chat_id"],
                 text=f"🎉 <b>Xatim yakunlandi!</b>\n\nBarcha {jami} kishi juzlarini o'qib bo'ldi!\nAlloh qabul qilsin! 🤲"
             )
-        except:
+        except Exception:
             pass
         xatm_db.pop(msg_id, None)
-
 
 # ── Tayyor (lichkadan) ──
 @dp.callback_query(F.data.startswith("pm_tayyor_"))
@@ -492,7 +484,7 @@ async def cb_pm_tayyor(callback: CallbackQuery):
         await bot.edit_message_reply_markup(
             chat_id=data["chat_id"], message_id=msg_id, reply_markup=kb
         )
-    except:
+    except Exception:
         pass
 
     if tayyor_soni == jami:
@@ -502,10 +494,9 @@ async def cb_pm_tayyor(callback: CallbackQuery):
                 chat_id=data["chat_id"],
                 text=f"🎉 <b>Xatim yakunlandi!</b>\n\nBarcha {jami} kishi juzlarini o'qib bo'ldi!\nAlloh qabul qilsin! 🤲"
             )
-        except:
+        except Exception:
             pass
         xatm_db.pop(msg_id, None)
-
 
 # ── Keyinroq ──
 @dp.callback_query(F.data.startswith("pm_keyin_"))
@@ -515,12 +506,10 @@ async def cb_pm_keyin(callback: CallbackQuery):
     )
     await callback.answer("Eslab qoling! ⏰")
 
-
 # ── Noop ──
 @dp.callback_query(F.data.startswith("noop_"))
 async def cb_noop(callback: CallbackQuery):
     await callback.answer()
-
 
 # ── /statistika ──
 @dp.message(Command("statistika"))
@@ -541,13 +530,13 @@ async def cmd_statistika(message: types.Message):
             f"/xatimyaratish bilan boshlang! 📖"
         )
         return
-await message.answer(
+
+    await message.answer(
         f"📊 <b>{username} statistikasi</b>\n\n"
         f"📖 Bu guruhda xatimlarda qatnashgan: <b>{guruh_stats['jami_xatim']} marta</b>\n"
         f"📚 Jami o'qilgan juzlar: <b>{guruh_stats['jami_juz']} juz</b>\n\n"
         f"Alloh qabul qilsin! 🤲"
     )
-
 
 # ── /tarix ──
 @dp.message(Command("tarix"))
@@ -568,7 +557,6 @@ async def cmd_tarix(message: types.Message):
             f"   👥 Ishtirokchilar: {x['ishtirokchilar']} kishi\n"
         )
     await message.answer("\n".join(lines))
-
 
 # ── /reyting ──
 @dp.message(Command("reyting"))
@@ -603,7 +591,6 @@ async def cmd_reyting(message: types.Message):
         )
     await message.answer("\n".join(lines))
 
-
 # ── /admin — faqat SUPER_ADMIN_ID ──
 @dp.message(Command("admin"))
 async def cmd_admin(message: types.Message):
@@ -612,64 +599,28 @@ async def cmd_admin(message: types.Message):
 
     jami_user = len(users_db)
 
-    # Guruhlar ro'yxati
-    guruhlar = {}
+    # Guruhlar ro'yxatini tezkor yig'ish (API so'rovlarisiz, faqat bazadan)
+    guruhlar = set()
     for uid_str, uinfo in users_db.items():
         for g_id in uinfo.get("guruhlar", []):
-            if g_id not in guruhlar:
-                guruhlar[g_id] = {"azolar": 0, "qoshgan": uid_str}
-            guruhlar[g_id]["azolar"] += 1
+            guruhlar.add(g_id)
 
-    # Jami xatimlar
+    # Jami xatimlar soni
     jami_xatim = 0
     for s in stats_db.values():
         for g_stats in s.get("guruhlar", {}).values():
             jami_xatim += g_stats.get("jami_xatim", 0)
 
-    faol_guruhlar = 0  # oldin hisoblaymiz
-    guruh_lines = []  # guruh ma'lumotlari alohida
-    for g_id, info in list(guruhlar.items())[:50]:
-        # Bot hali guruhda borligini tekshiramiz
-        try:
-            chat = await bot.get_chat(int(g_id))
-            guruh_ismi = chat.title or g_id
-            # Bot memberni tekshiramiz
-            bot_info = await bot.get_me()
-            member = await bot.get_chat_member(int(g_id), bot_info.id)
-            if member.status not in ("administrator", "creator", "member"):
-                continue  # Bot guruhda yo'q - o'tkazib yuboramiz
-        except:
-            continue  # Guruhga kira olmasa - o'tkazib yuboramiz
-
-        faol_guruhlar += 1
-
-        # Guruh xatim soni
-        g_xatim = sum(
-            s.get("guruhlar", {}).get(g_id, {}).get("jami_xatim", 0)
-            for s in stats_db.values()
-        )
-
-        # Kim qo'shgani
-        qoshgan = users_db.get(info["qoshgan"], {}).get("ism", "Noma'lum")
-
-        guruh_lines.append(
-            f"🏠 <b>{guruh_ismi}</b>\n"
-            f"   👥 A'zolar: {info['azolar']} kishi\n"
-            f"   📖 Xatimlar: {g_xatim} ta\n"
-            f"   ➕ Qo'shgan: {qoshgan}\n"
-        )
-# Yakuniy xabarni yig'amiz
     lines = [
         "👑 <b>SUPER ADMIN PANEL</b>\n",
         f"👤 Jami foydalanuvchilar: <b>{jami_user}</b>",
-        f"💬 Faol guruhlar: <b>{faol_guruhlar}</b>",
+        f"💬 Jami guruhlar: <b>{len(guruhlar)}</b>",
         f"📖 Jami xatimlar: <b>{jami_xatim}</b>\n",
         "─────────────────────",
-        "📋 <b>Guruhlar ro'yxati:</b>\n",
-    ] + guruh_lines
+        "⚠️ <i>Eslatma: Botni sekinlashtirmaslik uchun guruhlar ro'yxati API orqali tekshirilmasdan umumiy ko'rsatildi.</i>"
+    ]
 
     await message.answer("\n".join(lines))
-
 
 # ── /xabar ──
 @dp.message(Command("xabar"))
@@ -689,11 +640,10 @@ async def cmd_broadcast(message: types.Message):
                 message_id=message.reply_to_message.message_id
             )
             yuborildi += 1
-        except:
+        except Exception:
             yuborilmadi += 1
 
     await message.answer(f"✅ Yuborildi: {yuborildi}\n❌ Yuborilmadi: {yuborilmadi}")
-
 
 # ── Guruh a'zolarini saqlash (eng oxirida!) ──
 @dp.message(F.chat.type.in_({"group", "supergroup"}))
@@ -712,7 +662,6 @@ async def track_users(message: types.Message):
         users_db[uid]["guruhlar"].append(chat_id)
         save_json(USERS_FILE, users_db)
 
-
 async def main():
     await bot.set_my_commands([
         BotCommand(command="start", description="Botni ishga tushirish"),
@@ -724,5 +673,5 @@ async def main():
     print("✅ Bot ishga tushdi!")
     await dp.start_polling(bot)
 
-if __name__ == "__main__"::
+if __name__ == "__main__":
     asyncio.run(main())
