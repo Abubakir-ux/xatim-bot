@@ -138,7 +138,7 @@ def get_others(data):
     return [uid for uid in data["users"] if uid != data["creator_id"]]
 
 
-async eslatma_yuborish(uid, name, juz_text, sura_text, chat_title, msg_id):
+async def eslatma_yuborish(uid, name, juz_text, sura_text, chat_title, msg_id):
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
             [
