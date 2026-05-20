@@ -10,7 +10,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQu
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.client.default import DefaultBotProperties
 
-API_TOKEN = '8655041954:AAFYp1rRrJ_qT63nxww6B19g9zPwK1df9ZY'
+API_TOKEN = '8655041954:AAF4QcY6UCqSWdkOsaCgrY_3l_anXs1o4R4'
 SUPER_ADMIN_ID = 7480459140
 
 logging.basicConfig(level=logging.INFO)
@@ -286,13 +286,15 @@ async def cb_join(callback: CallbackQuery):
     data["users"][user_id] = username
     await callback.answer("Qo'shildingiz ✅")
 
+    # Bu odamga Boshlash ko'rsatamiz (bosganida "Faqat yaratuvchi" deydi)
     try:
         await callback.message.edit_text(make_text(data), reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
-            InlineKeyboardButton(text="⛔ Chiqish", callback_data=f"leave_{msg_id}")
+            InlineKeyboardButton(text="📖 Boshlash", callback_data=f"boshlash_{msg_id}")
         ]]))
     except TelegramBadRequest:
         pass
 
+    # Adminga ham Boshlash ko'rsatamiz
     if len(get_others(data)) >= 1:
         try:
             await bot.edit_message_reply_markup(
@@ -322,6 +324,7 @@ async def cb_leave(callback: CallbackQuery):
     del data["users"][user_id]
     await callback.answer("Chiqdingiz ⛔")
 
+    # Bu odamga Qo'shilish qaytadi
     try:
         await callback.message.edit_text(make_text(data), reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
             InlineKeyboardButton(text="➕ Qo'shilish", callback_data=f"join_{msg_id}")
@@ -329,6 +332,7 @@ async def cb_leave(callback: CallbackQuery):
     except TelegramBadRequest:
         pass
 
+    # Hech kim qolmasa adminga ham Qo'shilish
     if len(get_others(data)) == 0:
         try:
             await bot.edit_message_reply_markup(
@@ -665,10 +669,52 @@ async def cmd_reyting(message: types.Message):
     await message.answer("\n".join(lines))
 
 
-# ── /admin — faqat SUPER_ADMIN_ID ──
+# ── /admin ──
 @dp.message(Command("admin"))
 async def cmd_admin(message: types.Message):
-    if not message.from_user or message.from_user.id != SUPER_ADMIN_ID:
+    if not message.from_user:
+        return
+
+    # Guruhda — guruh admini uchun
+    if message.chat.type in ("group", "supergroup"):
+        try:
+            member = await bot.get_chat_member(message.chat.id, message.from_user.id)
+            if member.status not in ("administrator", "creator"):
+                return await message.answer("❌ Bu buyruq faqat guruh adminlari uchun!")
+        except:
+            return
+
+        chat_id_str = str(message.chat.id)
+
+        # Guruh xatim soni
+        g_xatim = sum(
+            s.get("guruhlar", {}).get(chat_id_str, {}).get("jami_xatim", 0)
+            for s in stats_db.values()
+        )
+
+        # Guruh qatnashchilar soni (unikal)
+        qatnashchilar = set()
+        for uid_str, s in stats_db.items():
+            if s.get("guruhlar", {}).get(chat_id_str, {}).get("jami_xatim", 0) > 0:
+                qatnashchilar.add(uid_str)
+
+        # Guruh a'zolari soni (botga start bosganlar)
+        azolar = sum(
+            1 for u in users_db.values()
+            if chat_id_str in u.get("guruhlar", [])
+        )
+
+        chat_title = message.chat.title or "Guruh"
+        await message.answer(
+            f"📊 <b>{chat_title} statistikasi</b>\n\n"
+            f"📖 Jami xatimlar: <b>{g_xatim} ta</b>\n"
+            f"👥 Jami qatnashchilar: <b>{len(qatnashchilar)} kishi</b>\n"
+            f"👤 Botga ulangan azolar: <b>{azolar} kishi</b>"
+        )
+        return
+
+    # Lichkada — faqat super admin uchun
+    if message.from_user.id != SUPER_ADMIN_ID:
         return
 
     jami_user = len(users_db)
