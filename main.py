@@ -10,7 +10,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQu
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.client.default import DefaultBotProperties
 
-API_TOKEN = '8655041954:AAFYp1rRrJ_qT63nxww6B19g9zPwK1df9ZY'
+API_TOKEN = '8655041954:AAF4QcY6UCqSWdkOsaCgrY_3l_anXs1o4R4'
 SUPER_ADMIN_ID = 7480459140
 
 logging.basicConfig(level=logging.INFO)
@@ -675,108 +675,86 @@ async def cmd_admin(message: types.Message):
     if not message.from_user:
         return
 
-    # Guruhda — guruh admini uchun
+    # GURUHDA: guruh admin/creator uchun
     if message.chat.type in ("group", "supergroup"):
         try:
             member = await bot.get_chat_member(message.chat.id, message.from_user.id)
             if member.status not in ("administrator", "creator"):
-                return await message.answer("❌ Bu buyruq faqat guruh adminlari uchun!")
+                return await message.answer("Bu buyruq faqat guruh adminlari uchun!")
         except:
             return
 
         chat_id_str = str(message.chat.id)
+        chat_title = message.chat.title or "Guruh"
 
-        # Guruh xatim soni
         g_xatim = sum(
             s.get("guruhlar", {}).get(chat_id_str, {}).get("jami_xatim", 0)
             for s in stats_db.values()
         )
-
-        # Guruh qatnashchilar soni (unikal)
-        qatnashchilar = set()
-        for uid_str, s in stats_db.items():
-            if s.get("guruhlar", {}).get(chat_id_str, {}).get("jami_xatim", 0) > 0:
-                qatnashchilar.add(uid_str)
-
-        # Guruh a'zolari soni (botga start bosganlar)
+        qatnashchilar = sum(
+            1 for s in stats_db.values()
+            if s.get("guruhlar", {}).get(chat_id_str, {}).get("jami_xatim", 0) > 0
+        )
         azolar = sum(
             1 for u in users_db.values()
             if chat_id_str in u.get("guruhlar", [])
         )
-
-        chat_title = message.chat.title or "Guruh"
-        await message.answer(
+        text = (
             f"📊 <b>{chat_title} statistikasi</b>\n\n"
             f"📖 Jami xatimlar: <b>{g_xatim} ta</b>\n"
-            f"👥 Jami qatnashchilar: <b>{len(qatnashchilar)} kishi</b>\n"
-            f"👤 Botga ulangan azolar: <b>{azolar} kishi</b>"
+            f"👥 Qatnashchilar: <b>{qatnashchilar} kishi</b>\n"
+            f"👤 Botga ulangan: <b>{azolar} kishi</b>"
         )
+        await message.answer(text)
         return
 
-    # Lichkada — faqat super admin uchun
+    # LICHKADA: faqat SUPER ADMIN
     if message.from_user.id != SUPER_ADMIN_ID:
         return
 
-    jami_user = len(users_db)
-
-    # Guruhlar ro'yxati
     guruhlar = {}
-    for uid_str, uinfo in users_db.items():
+    for uinfo in users_db.values():
         for g_id in uinfo.get("guruhlar", []):
-            if g_id not in guruhlar:
-                guruhlar[g_id] = {"azolar": 0, "qoshgan": uid_str}
-            guruhlar[g_id]["azolar"] += 1
+            guruhlar[g_id] = guruhlar.get(g_id, 0) + 1
 
-    # Jami xatimlar
-    jami_xatim = 0
-    for s in stats_db.values():
-        for g_stats in s.get("guruhlar", {}).values():
-            jami_xatim += g_stats.get("jami_xatim", 0)
-
-    faol_guruhlar = 0  # oldin hisoblaymiz
-    guruh_lines = []  # guruh ma'lumotlari alohida
-    for g_id, info in list(guruhlar.items())[:50]:
-        # Bot hali guruhda borligini tekshiramiz
+    faol = 0
+    bot_info = await bot.get_me()
+    for g_id in guruhlar:
         try:
-            chat = await bot.get_chat(int(g_id))
-            guruh_ismi = chat.title or g_id
-            # Bot memberni tekshiramiz
-            bot_info = await bot.get_me()
-            member = await bot.get_chat_member(int(g_id), bot_info.id)
-            if member.status not in ("administrator", "creator", "member"):
-                continue  # Bot guruhda yo'q - o'tkazib yuboramiz
+            m = await bot.get_chat_member(int(g_id), bot_info.id)
+            if m.status in ("administrator", "creator", "member"):
+                faol += 1
         except:
-            continue  # Guruhga kira olmasa - o'tkazib yuboramiz
+            pass
 
-        faol_guruhlar += 1
+    jami_xatim = 0
+    xatim_30 = 0
+    xatim_7 = 0
+    now = datetime.now()
+    for tarix_list in tarix_db.values():
+        for x in tarix_list:
+            jami_xatim += 1
+            try:
+                vaqt = datetime.strptime(x["vaqt"], "%d.%m.%Y %H:%M")
+                kunlar = (now - vaqt).days
+                if kunlar <= 30:
+                    xatim_30 += 1
+                if kunlar <= 7:
+                    xatim_7 += 1
+            except:
+                pass
 
-        # Guruh xatim soni
-        g_xatim = sum(
-            s.get("guruhlar", {}).get(g_id, {}).get("jami_xatim", 0)
-            for s in stats_db.values()
-        )
-
-        # Kim qo'shgani
-        qoshgan = users_db.get(info["qoshgan"], {}).get("ism", "Noma'lum")
-
-        guruh_lines.append(
-            f"🏠 <b>{guruh_ismi}</b>\n"
-            f"   👥 A'zolar: {info['azolar']} kishi\n"
-            f"   📖 Xatimlar: {g_xatim} ta\n"
-            f"   ➕ Qo'shgan: {qoshgan}\n"
-        )
-
-    # Yakuniy xabarni yig'amiz
-    lines = [
-        "👑 <b>SUPER ADMIN PANEL</b>\n",
-        f"👤 Jami foydalanuvchilar: <b>{jami_user}</b>",
-        f"💬 Faol guruhlar: <b>{faol_guruhlar}</b>",
-        f"📖 Jami xatimlar: <b>{jami_xatim}</b>\n",
-        "─────────────────────",
-        "📋 <b>Guruhlar ro'yxati:</b>\n",
-    ] + guruh_lines
-
-    await message.answer("\n".join(lines))
+    text = (
+        f"👑 <b>SUPER ADMIN PANEL</b>\n\n"
+        f"👤 Foydalanuvchilar: <b>{len(users_db)}</b>\n"
+        f"💬 Faol guruhlar: <b>{faol}</b>\n"
+        f"👥 Jami qatnashchilar: <b>{len(stats_db)}</b>\n\n"
+        f"📖 <b>Xatimlar:</b>\n"
+        f"   Jami: <b>{jami_xatim} ta</b>\n"
+        f"   30 kun: <b>{xatim_30} ta</b>\n"
+        f"   7 kun: <b>{xatim_7} ta</b>"
+    )
+    await message.answer(text)
 
 
 # ── /xabar ──
