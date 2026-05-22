@@ -5,16 +5,475 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hatim.uz - Telegram Xatm Boti</title>
     <meta name="description" content="Hatim.uz Telegram boti orqali osongina xatm va poralar oling. Guruhlar uchun maxsus xatm qilish tizimi.">
-</head>
-<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin-top: 120px; background-color: #f4f6f9; color: #333;">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap');
 
-    <h1 style="font-size: 36px; color: #2c3e50; margin-bottom: 10px;">Hatim.uz Telegram Boti</h1>
-    <p style="font-size: 18px; color: #7f8c8d; margin-bottom: 30px;">Telegram guruhlar va shaxsiy foydalanish uchun eng qulay xatm boti.</p>
-    
-    <!-- Quyidagi xatim_bot degan joyga botingizning haqiqiy username'ini yozing -->
-    <a href="https://t.me/xatim_uzbot" style="background-color: #24A1DE; color: white; padding: 15px 35px; text-decoration: none; font-size: 18px; border-radius: 8px; font-weight: bold; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        Botni ochish (Telegram)
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #0a0a0f;
+            color: #ffffff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .bg-animation::before {
+            content: '';
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(0, 212, 255, 0.08) 0%, transparent 70%);
+            top: -100px;
+            left: -100px;
+            animation: float1 8s ease-in-out infinite;
+        }
+
+        .bg-animation::after {
+            content: '';
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(120, 0, 255, 0.08) 0%, transparent 70%);
+            bottom: -100px;
+            right: -100px;
+            animation: float2 10s ease-in-out infinite;
+        }
+
+        @keyframes float1 {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(80px, 80px); }
+        }
+
+        @keyframes float2 {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(-60px, -60px); }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 60px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            justify-content: center;
+        }
+
+        /* Logo / Icon */
+        .logo-wrapper {
+            margin-bottom: 30px;
+            animation: pulse-glow 3s ease-in-out infinite;
+        }
+
+        .logo-icon {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #00d4ff, #7800ff);
+            border-radius: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 50px;
+            box-shadow:
+                0 0 30px rgba(0, 212, 255, 0.4),
+                0 0 60px rgba(120, 0, 255, 0.2),
+                0 0 100px rgba(0, 212, 255, 0.1);
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                filter: drop-shadow(0 0 15px rgba(0, 212, 255, 0.5));
+            }
+            50% {
+                filter: drop-shadow(0 0 30px rgba(0, 212, 255, 0.9));
+            }
+        }
+
+        /* Title */
+        .title {
+            font-size: clamp(2.5rem, 8vw, 4.5rem);
+            font-weight: 800;
+            text-align: center;
+            background: linear-gradient(135deg, #00d4ff 0%, #ffffff 50%, #b400ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 16px;
+            line-height: 1.1;
+            text-shadow: none;
+        }
+
+        .subtitle {
+            font-size: clamp(1rem, 3vw, 1.25rem);
+            color: rgba(255, 255, 255, 0.6);
+            text-align: center;
+            margin-bottom: 50px;
+            font-weight: 300;
+            max-width: 500px;
+            line-height: 1.6;
+        }
+
+        /* Stats row */
+        .stats {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 50px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 16px;
+            padding: 20px 30px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: rgba(0, 212, 255, 0.6);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.15);
+            transform: translateY(-3px);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00d4ff, #7800ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 4px;
+        }
+
+        /* Features */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            width: 100%;
+            margin-bottom: 50px;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 28px 24px;
+            transition: all 0.3s ease;
+            cursor: default;
+        }
+
+        .feature-card:hover {
+            background: rgba(0, 212, 255, 0.05);
+            border-color: rgba(0, 212, 255, 0.3);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(0, 212, 255, 0.1);
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 14px;
+        }
+
+        .feature-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #ffffff;
+        }
+
+        .feature-desc {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.45);
+            line-height: 1.5;
+        }
+
+        /* CTA Button */
+        .cta-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .cta-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(135deg, #00d4ff, #0088ff);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 18px 48px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow:
+                0 0 20px rgba(0, 212, 255, 0.4),
+                0 0 40px rgba(0, 212, 255, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .cta-btn:hover::before {
+            left: 100%;
+        }
+
+        .cta-btn:hover {
+            transform: translateY(-3px) scale(1.03);
+            box-shadow:
+                0 0 30px rgba(0, 212, 255, 0.6),
+                0 0 60px rgba(0, 212, 255, 0.3);
+        }
+
+        .cta-btn:active {
+            transform: scale(0.98);
+        }
+
+        .cta-hint {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Steps */
+        .steps-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 30px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .steps {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 50px;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 16px 20px;
+            transition: all 0.3s ease;
+        }
+
+        .step:hover {
+            border-color: rgba(120, 0, 255, 0.3);
+            background: rgba(120, 0, 255, 0.05);
+        }
+
+        .step-num {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #7800ff, #00d4ff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+            box-shadow: 0 0 12px rgba(120, 0, 255, 0.4);
+        }
+
+        .step-text {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.4;
+        }
+
+        /* Neon divider */
+        .neon-divider {
+            width: 200px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+            margin: 40px auto;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.2);
+            font-size: 0.8rem;
+        }
+
+        .footer a {
+            color: rgba(0, 212, 255, 0.5);
+            text-decoration: none;
+        }
+
+        /* Neon border animation */
+        @keyframes neon-border {
+            0%, 100% { box-shadow: 0 0 5px #00d4ff, 0 0 10px #00d4ff, 0 0 20px #00d4ff; }
+            50% { box-shadow: 0 0 10px #7800ff, 0 0 20px #7800ff, 0 0 40px #7800ff; }
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .stats {
+                gap: 14px;
+            }
+            .stat-card {
+                padding: 14px 20px;
+            }
+            .cta-btn {
+                padding: 16px 32px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-animation"></div>
+
+<div class="container">
+
+    <!-- Logo -->
+    <div class="logo-wrapper">
+        <div class="logo-icon">📖</div>
+    </div>
+
+    <!-- Title -->
+    <h1 class="title">Hatim.uz</h1>
+    <p class="subtitle">Guruhingizda Quron xatmini tashkil qiling — bot barcha juzlarni avtomatik taqsimlaydi!</p>
+
+    <!-- Stats -->
+    <div class="stats">
+        <div class="stat-card">
+            <div class="stat-number">30</div>
+            <div class="stat-label">Juz avtomatik</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">⚡</div>
+            <div class="stat-label">Tezkor taqsimlash</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">24/7</div>
+            <div class="stat-label">Doim ishlaydi</div>
+        </div>
+    </div>
+
+    <!-- Features -->
+    <div class="features">
+        <div class="feature-card">
+            <div class="feature-icon">📋</div>
+            <div class="feature-title">Avtomatik taqsimlash</div>
+            <div class="feature-desc">Bot 30 juzni qatnashchilar o'rtasida avtomatik teng taqsimlaydi</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">⏰</div>
+            <div class="feature-title">Eslatmalar</div>
+            <div class="feature-desc">Har bir qatnashchiga o'z juzini o'qish haqida eslatma yuboriladi</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <div class="feature-title">Statistika</div>
+            <div class="feature-desc">Guruh va shaxsiy xatim tarixini, reytingni ko'ring</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🏆</div>
+            <div class="feature-title">Reyting</div>
+            <div class="feature-desc">Guruhda eng faol qatnashchilar ro'yxati va medallari</div>
+        </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-wrapper">
+        <a href="https://t.me/xatim_uzbot" class="cta-btn" target="_blank">
+            <span>✈️</span>
+            <span>Botni ochish</span>
+        </a>
+        <span class="cta-hint">@xatim_uzbot • Bepul • Admin kerak</span>
+    </div>
+
+    <div class="neon-divider"></div>
+
+    <!-- Steps -->
+    <h2 class="steps-title">Qanday ishlatiladi?</h2>
+    <div class="steps">
+        <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-text">Botni guruhingizga qo'shing va <strong>Admin</strong> qiling</div>
+        </div>
+        <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-text">Guruhda <code style="background:rgba(0,212,255,0.1);padding:2px 6px;border-radius:4px;">/xatimyaratish</code> yozing</div>
+        </div>
+        <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-text">Qatnashchilar <strong>Qo'shilish</strong> tugmasini bosishsin</div>
+        </div>
+        <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-text"><strong>Boshlash</strong> tugmasini bosing — bot juzlarni taqsimlaydi 📖</div>
+        </div>
+        <div class="step">
+            <div class="step-num">5</div>
+            <div class="step-text">Har kim juzini o'qib <strong>O'qidim</strong> bosadi — xatim yakunlanadi 🎉</div>
+        </div>
+    </div>
+
+    <!-- Footer CTA again -->
+    <a href="https://t.me/xatim_uzbot" class="cta-btn" target="_blank">
+        <span>🕌</span>
+        <span>Hatimni boshlash</span>
     </a>
+
+    <!-- Footer -->
+    <div class="footer" style="margin-top: 50px;">
+        <p>© 2026 Hatim.uz • <a href="https://t.me/xatim_uzbot">@xatim_uzbot</a></p>
+        <p style="margin-top: 6px;">Alloh qabul qilsin 🤲</p>
+    </div>
+
+</div>
 
 </body>
 </html>
