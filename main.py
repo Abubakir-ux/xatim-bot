@@ -10,7 +10,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQu
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.client.default import DefaultBotProperties
 
-API_TOKEN = '8655041954:AAF4QcY6UCqSWdkOsaCgrY_3l_anXs1o4R4'
+API_TOKEN = '8655041954:AAFYp1rRrJ_qT63nxww6B19g9zPwK1df9ZY'
 SUPER_ADMIN_ID = 7480459140
 
 logging.basicConfig(level=logging.INFO)
@@ -354,7 +354,19 @@ async def cb_boshlash(callback: CallbackQuery):
     data = xatm_db[msg_id]
 
     if callback.from_user.id != data["creator_id"]:
-        return await callback.answer("Faqat yaratuvchi boshlaydi!", show_alert=True)
+        user_id = callback.from_user.id
+        username = f"@{callback.from_user.username}" if callback.from_user.username else callback.from_user.full_name
+        if user_id in data["users"]:
+            return await callback.answer("Siz allaqachon ro'yxatdasiz! ✅", show_alert=False)
+        data["users"][user_id] = username
+        await callback.answer("Qo'shildingiz ✅")
+        try:
+            await callback.message.edit_text(make_text(data), reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="📖 Boshlash", callback_data=f"boshlash_{msg_id}")
+            ]]))
+        except TelegramBadRequest:
+            pass
+        return
 
     taqsimlangan = taqsimla(data["users"], jami=30)
     data["taqsim"] = taqsimlangan
