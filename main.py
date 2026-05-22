@@ -771,13 +771,7 @@ async def cmd_broadcast(message: types.Message):
 @dp.message(F.chat.type == "private", F.from_user.id == SUPER_ADMIN_ID)
 async def super_admin_msg(message: types.Message):
     if message.text and message.text.startswith("/"):
-        broadcast_mode.discard(message.from_user.id)
         return
-
-    if message.from_user.id not in broadcast_mode:
-        return
-
-    broadcast_mode.discard(message.from_user.id)
 
     yuborildi = 0
     yuborilmadi = 0
