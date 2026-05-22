@@ -10,7 +10,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQu
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.client.default import DefaultBotProperties
 
-API_TOKEN = '8655041954:AAFYp1rRrJ_qT63nxww6B19g9zPwK1df9ZY'
+API_TOKEN = '8655041954:AAF4QcY6UCqSWdkOsaCgrY_3l_anXs1o4R4'
 SUPER_ADMIN_ID = 7480459140
 
 logging.basicConfig(level=logging.INFO)
@@ -758,21 +758,38 @@ async def cmd_admin(message: types.Message):
 
 
 # ── /xabar ──
+broadcast_mode = set()
+
 @dp.message(Command("xabar"))
 async def cmd_broadcast(message: types.Message):
     if not message.from_user or message.from_user.id != SUPER_ADMIN_ID:
         return
-    if not message.reply_to_message:
-        return await message.answer("Xabar yuborish uchun biror xabarga reply qiling!")
+    broadcast_mode.add(message.from_user.id)
+    await message.answer("📝 Nima xabar yubormoqchisiz? Yozing:")
+
+
+@dp.message(F.chat.type == "private", F.from_user.id == SUPER_ADMIN_ID)
+async def super_admin_msg(message: types.Message):
+    if message.text and message.text.startswith("/"):
+        broadcast_mode.discard(message.from_user.id)
+        return
+
+    if message.from_user.id not in broadcast_mode:
+        return
+
+    broadcast_mode.discard(message.from_user.id)
 
     yuborildi = 0
     yuborilmadi = 0
     for uid_str in users_db:
         try:
+            uid_int = int(uid_str)
+            if uid_int == SUPER_ADMIN_ID:
+                continue
             await bot.copy_message(
-                chat_id=int(uid_str),
+                chat_id=uid_int,
                 from_chat_id=message.chat.id,
-                message_id=message.reply_to_message.message_id
+                message_id=message.message_id
             )
             yuborildi += 1
         except:
