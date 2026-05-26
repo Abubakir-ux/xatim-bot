@@ -724,6 +724,7 @@ async def cmd_admin(message: types.Message):
     if message.from_user.id != SUPER_ADMIN_ID:
         return
 
+    # --- Guruhlar soni ---
     guruhlar = {}
     for uinfo in users_db.values():
         for g_id in uinfo.get("guruhlar", []):
@@ -739,6 +740,13 @@ async def cmd_admin(message: types.Message):
         except:
             pass
 
+    # --- Umumiy qatnashganlar (barcha xatimlardagi ishtirokchilar yig'indisi) ---
+    umumiy_qatnashganlar = 0
+    for tarix_list in tarix_db.values():
+        for x in tarix_list:
+            umumiy_qatnashganlar += x.get("ishtirokchilar", 0)
+
+    # --- Xatimlar statistikasi ---
     jami_xatim = 0
     xatim_30 = 0
     xatim_7 = 0
@@ -758,13 +766,12 @@ async def cmd_admin(message: types.Message):
 
     text = (
         f"👑 <b>SUPER ADMIN PANEL</b>\n\n"
-        f"👤 Foydalanuvchilar: <b>{len(users_db)}</b>\n"
-        f"💬 Faol guruhlar: <b>{faol}</b>\n"
-        f"👥 Jami qatnashchilar: <b>{len(stats_db)}</b>\n\n"
+        f"💬 Guruhlar: <b>{faol}</b>\n"
+        f"👥 Umumiy qatnashganlar: <b>{umumiy_qatnashganlar}</b>\n\n"
         f"📖 <b>Xatimlar:</b>\n"
         f"   Jami: <b>{jami_xatim} ta</b>\n"
-        f"   30 kun: <b>{xatim_30} ta</b>\n"
-        f"   7 kun: <b>{xatim_7} ta</b>"
+        f"   30 kunli: <b>{xatim_30} ta</b>\n"
+        f"   7 kunli: <b>{xatim_7} ta</b>"
     )
     await message.answer(text)
 
